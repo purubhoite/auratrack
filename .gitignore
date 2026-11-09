@@ -25,3 +25,11 @@ dist-ssr
 
 
 .env
+
+# Environment files can contain credentials; keep only the template.
+.env.*
+!.env.example
+
+# Playwright's temporary reports and traces
+playwright-report/
+test-results/
