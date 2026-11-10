@@ -152,7 +152,7 @@ const HabitRow = ({ habit, completions, calendarGrid, onToggle, onOpenNote, pend
 );
 
 // --- components/CalendarGrid.jsx ---
-const CalendarGrid = ({ habits, allCompletions, currentDate, changeMonth, onToggle, onOpenNote, pendingCompletions }) => {
+const CalendarGrid = ({ habits, allCompletions, currentDate, changeMonth, goToToday, onToggle, onOpenNote, pendingCompletions }) => {
     const calendarGrid = useMemo(() => {
         const year = currentDate.getFullYear(), month = currentDate.getMonth();
         const days = getDaysInMonth(year, month);
@@ -163,7 +163,7 @@ const CalendarGrid = ({ habits, allCompletions, currentDate, changeMonth, onTogg
     return (
         <div className="lg:col-span-2">
             <SolidCard className="p-4 sm:p-6">
-                <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h2><div className="flex items-center space-x-2"><button aria-label="Previous month" onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-zinc-700"><ChevronLeftIcon /></button><button aria-label="Next month" onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-zinc-700"><ChevronRightIcon /></button></div></div>
+                <div className="flex flex-wrap gap-2 justify-between items-center mb-4"><h2 className="text-xl font-bold">{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h2><div className="flex items-center space-x-2">{goToToday && <button type="button" onClick={goToToday} className="rounded-md border border-zinc-600 px-3 py-1 text-sm text-zinc-200 hover:bg-zinc-700">This month</button>}<button aria-label="Previous month" onClick={() => changeMonth(-1)} className="p-2 rounded-full hover:bg-zinc-700"><ChevronLeftIcon /></button><button aria-label="Next month" onClick={() => changeMonth(1)} className="p-2 rounded-full hover:bg-zinc-700"><ChevronRightIcon /></button></div></div>
                 <div className="overflow-x-auto">
                     <div className="grid gap-px bg-zinc-700/50" style={{ gridTemplateColumns: `minmax(140px, 1fr) repeat(${calendarGrid.days}, minmax(45px, 1fr))` }}>
                         <div className="sticky left-0 z-20 p-2 text-sm font-semibold text-center bg-zinc-800">Habit</div>
@@ -183,14 +183,27 @@ const CalendarGrid = ({ habits, allCompletions, currentDate, changeMonth, onTogg
 
 const TodayView = ({ habits, allCompletions, today, onToggle, onOpenNote, pendingCompletions }) => {
     const todayStr = formatDate(today);
+    const [filter, setFilter] = useState('all');
+    const [search, setSearch] = useState('');
     const completed = habits.filter(habit => allCompletions[habit.id]?.[todayStr]).length;
+    const visibleHabits = habits.filter(habit => {
+        const done = Boolean(allCompletions[habit.id]?.[todayStr]);
+        return habit.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()) && (filter === 'all' || (filter === 'done' ? done : !done));
+    });
     return <SolidCard className="p-4 sm:p-6 mb-8" aria-labelledby="today-title">
         <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
             <div><h2 id="today-title" className="text-xl font-bold">Today</h2><p className="text-sm text-zinc-400 mt-1">{today.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p></div>
             <span className="text-sm text-amber-300">{completed} of {habits.length} completed</span>
         </div>
-        {habits.length === 0 ? <p className="text-sm text-zinc-400">Add a habit below to get started. Your daily check-in will appear here.</p> : <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {habits.map(habit => {
+        {habits.length === 0 ? <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 p-4"><p className="font-semibold text-zinc-200">Build momentum, one day at a time.</p><p className="mt-1 text-sm text-zinc-400">Add a habit below to get started. Your daily check-in will appear here.</p><p className="mt-2 text-sm text-zinc-400">Choose a starter or create your own, check in, and add a note to remember your progress.</p></div> : <>
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+            <div role="group" aria-label="Filter today's habits" className="flex rounded-lg border border-zinc-700 bg-zinc-900 p-1 text-sm">
+                {[['all', 'All'], ['todo', 'To do'], ['done', 'Done']].map(([value, label]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`rounded-md px-3 py-1.5 font-semibold ${filter === value ? 'bg-amber-400 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>{label}</button>)}
+            </div>
+            <label htmlFor="today-search" className="sr-only">Search today's habits</label><input id="today-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Find a habit" className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+        </div>
+        {visibleHabits.length === 0 ? <p className="text-sm text-zinc-400">No habits match these filters.</p> : <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleHabits.map(habit => {
                 const completion = allCompletions[habit.id]?.[todayStr];
                 const done = Boolean(completion);
                 const isDuplicate = completion?.records?.length > 1;
@@ -205,6 +218,7 @@ const TodayView = ({ habits, allCompletions, today, onToggle, onOpenNote, pendin
                 </li>;
             })}
         </ul>}
+        </>}
     </SolidCard>;
 };
 

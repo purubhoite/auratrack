@@ -92,6 +92,94 @@ describe('Supabase application', () => {
         } finally { confirm.mockRestore(); }
     });
 
+    it('filters Today without changing overall progress, and supports quick search', async () => {
+        const user = userEvent.setup(); render(<App />);
+        await user.click(await screen.findByRole('button', { name: '+ Read' }));
+        await user.click(screen.getByRole('button', { name: '+ Exercise' }));
+        await user.click(screen.getByRole('button', { name: 'Mark complete today: Read' }));
+        await user.click(screen.getByRole('button', { name: 'To do' }));
+        expect(screen.queryByRole('button', { name: 'Mark incomplete today: Read' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Mark complete today: Exercise' })).toBeTruthy();
+        expect(screen.getByText('1 of 2 completed')).toBeTruthy();
+        await user.click(screen.getByRole('button', { name: 'Done', exact: true }));
+        expect(screen.getByRole('button', { name: 'Mark incomplete today: Read' })).toBeTruthy();
+        await user.type(screen.getByRole('searchbox', { name: "Search today's habits" }), 'exercise');
+        expect(screen.getByText('No habits match these filters.')).toBeTruthy();
+        await user.click(screen.getByRole('button', { name: 'All', exact: true }));
+        expect(screen.getByRole('button', { name: 'Mark complete today: Exercise' })).toBeTruthy();
+    });
+
+    it('shows activity and lets guests search, edit, archive and restore journal notes', async () => {
+        const user = userEvent.setup(); render(<App />);
+        await user.click(await screen.findByRole('button', { name: '+ Read' }));
+        await user.click(screen.getByRole('button', { name: 'Mark complete today: Read' }));
+        await user.click(screen.getByRole('button', { name: "Edit today's note: Read" }));
+        await user.type(screen.getByRole('textbox', { name: 'Habit note' }), 'A chapter about stars');
+        await user.click(screen.getByRole('button', { name: 'Save Note' }));
+        expect(screen.getByRole('button', { name: /Edit note for Read/ })).toBeTruthy();
+        expect(screen.getByRole('button', { name: '7 days' }).getAttribute('aria-pressed')).toBe('true');
+        await user.click(screen.getByRole('button', { name: '30 days' }));
+        expect(screen.getByRole('button', { name: '30 days' }).getAttribute('aria-pressed')).toBe('true');
+        const search = screen.getByRole('searchbox', { name: 'Search notes and habits' });
+        await user.type(search, 'STARS');
+        await user.click(screen.getByRole('button', { name: /Edit note for Read/ }));
+        expect(screen.getByRole('textbox', { name: 'Habit note' }).value).toBe('A chapter about stars');
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+        await user.click(screen.getByRole('button', { name: 'Archive Read' }));
+        expect(screen.queryByRole('button', { name: /Edit note for Read/ })).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Restore Read' }));
+        expect(screen.getByRole('button', { name: /Edit note for Read/ })).toBeTruthy();
+        const restoredSearch = screen.getByRole('searchbox', { name: 'Search notes and habits' });
+        await user.clear(restoredSearch); await user.type(restoredSearch, 'nothing matches');
+        expect(screen.getByText('No notes match your search.')).toBeTruthy();
+    });
+
+    it('shows account activity and opens account journal notes for editing', async () => {
+        mocks.client.auth.onAuthStateChange.mockImplementation(callback => { onAuth = callback; callback('INITIAL_SESSION', { user: { id: 'alice' } }); return { data: { subscription: { unsubscribe() {} } } }; });
+        const day = new Date();
+        const key = [day.getFullYear(), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0')].join('-');
+        mocks.repo.listHabits.mockResolvedValue([{ id: 'a', name: 'Read' }, { id: 'b', name: 'Hidden', archived: true }]);
+        mocks.repo.listCompletions.mockResolvedValue([{ id: 'c', habit_id: 'a', completed_on: key, note: 'Account note' }, { id: 'd', habit_id: 'b', completed_on: key, note: 'Hidden note' }]);
+        const user = userEvent.setup(); render(<App />);
+        await screen.findByRole('button', { name: /Edit note for Read/ });
+        expect(screen.getByText('Check-ins').nextElementSibling.textContent).toBe('1');
+        expect(screen.queryByText('Hidden note')).toBeNull();
+        await user.click(screen.getByRole('button', { name: /Edit note for Read/ }));
+        expect(screen.getByRole('textbox', { name: 'Habit note' }).value).toBe('Account note');
+        await user.click(screen.getByRole('button', { name: 'Close' }));
+    });
+
+    it('paginates journal notes and resets the limit when searching', async () => {
+        const dates = Array.from({ length: 6 }, (_, index) => {
+            const date = new Date(); date.setDate(date.getDate() - index);
+            return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+        });
+        const history = Object.fromEntries(dates.map((date, index) => [date, { id: `c${index}`, note: `Journal entry ${index}` }]));
+        window.localStorage.setItem('auratrack.guest.v1', JSON.stringify({ version: 1, habits: [{ id: 'a', name: 'Read' }], completions: { a: history } }));
+        const user = userEvent.setup(); render(<App />);
+        expect(await screen.findByText('Journal entry 0')).toBeTruthy();
+        expect(screen.queryByText('Journal entry 5')).toBeNull();
+        await user.click(screen.getByRole('button', { name: 'Show more notes (1 remaining)' }));
+        expect(screen.getByText('Journal entry 5')).toBeTruthy();
+        await user.type(screen.getByRole('searchbox', { name: 'Search notes and habits' }), 'entry 5');
+        expect(screen.getByText('Journal entry 5')).toBeTruthy();
+        expect(screen.queryByText('Journal entry 0')).toBeNull();
+    });
+
+    it('clears journal search and Today filters when accounts change', async () => {
+        mocks.repo.listHabits.mockResolvedValue([{ id: 'h', name: 'Read' }]);
+        const user = userEvent.setup(); render(<App />);
+        await screen.findByRole('button', { name: 'Login / Sign Up' });
+        act(() => { onAuth('SIGNED_IN', { user: { id: 'alice' } }); });
+        await screen.findByRole('button', { name: 'Archive Read' });
+        await user.type(screen.getByRole('searchbox', { name: 'Search notes and habits' }), 'private query');
+        await user.click(screen.getByRole('button', { name: 'To do' }));
+        act(() => { onAuth('SIGNED_IN', { user: { id: 'bob' } }); });
+        await screen.findByRole('button', { name: 'Archive Read' });
+        expect(screen.getByRole('searchbox', { name: 'Search notes and habits' }).value).toBe('');
+        expect(screen.getByRole('button', { name: 'All', exact: true }).getAttribute('aria-pressed')).toBe('true');
+    });
+
     it('requests signup and shows the email confirmation state', async () => {
         mocks.client.auth.signUp.mockResolvedValue({ data: { session: null }, error: null });
         const user = userEvent.setup();
