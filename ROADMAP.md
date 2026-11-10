@@ -34,7 +34,8 @@ The Firebase-specific tasks below apply only to the retained legacy implementati
 
 ## 2. Core product
 
-- [x] Add a mobile-friendly Today view and general-purpose starter suggestions.
+- [x] Add a mobile-friendly Today view, quick filters, search and general-purpose starter suggestions.
+- [x] Add rolling activity summaries and a searchable notes journal for active habits.
 - [ ] Add a guided onboarding flow.
 - [x] Support renaming habits without losing history.
 - [x] Support archiving and restoring habits without deleting history.

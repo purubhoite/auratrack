@@ -1,6 +1,6 @@
 # AuraTrack
 
-AuraTrack is a habit tracker built with React, Vite, Tailwind CSS, Supabase Auth and PostgreSQL. Check in from the Today view, rename or archive habits, add notes, export your data, and review streaks in a monthly calendar.
+AuraTrack is a habit tracker built with React, Vite, Tailwind CSS, Supabase Auth and PostgreSQL. Check in from the Today view, filter or search habits, rename or archive them, add notes, explore your activity and journal, export your data, and review streaks in a monthly calendar.
 
 ## Getting started
 
@@ -17,11 +17,13 @@ Open the URL printed by Vite. Guest mode works without Supabase: habits and comp
 
 Copy `.env.example` to `.env` and fill in your Supabase project URL and **publishable** key. The project must have the SQL migrations in `supabase/migrations` applied and email/password auth configured. Restart Vite after changing the environment. Never put a service-role or secret key in frontend environment variables. Browser configuration is public; Row Level Security and database permissions are essential.
 
-The current workspace is configured for a separate staging project. Its auth redirect URLs are configured for the current preview and local Vite origin; they must be changed for other deployment URLs. Email confirmation is enabled. Supabase's default email service has delivery restrictions; configure and test an appropriate SMTP provider before inviting general users.
+A separate staging project was previously configured; this checkout needs its own ignored `.env` to connect to it. Its auth redirect URLs are configured for the current preview and local Vite origin; they must be changed for other deployment URLs. Email confirmation is enabled. Supabase's default email service has delivery restrictions; configure and test an appropriate SMTP provider before inviting general users.
 
 Signing in does not automatically import guest data. Choose **Import guest data** to copy active guest habits and notes into the account. Archived guest habits remain on the device and are not imported; sign out and restore them before importing. Archive state is not synchronized between guest and account copies, including previously imported habits. Import is transactional, keeps the guest originals, creates separate habits even if names match, and skips previously imported records rather than overwriting them. It is limited to 200 habits and 5,000 completions per import. If an imported account habit is deleted, previously imported records remain skipped; importing new guest history for that deleted habit will fail instead of silently recreating it.
 
 Archiving hides a habit from Today, the calendar and progress overview but retains its completions and notes; restore it from **Archived habits**. Streaks are based on actual completed calendar days, so missed days while archived can break a current streak. JSON export includes archived habits and their history.
+
+**Today** can filter all, incomplete or completed habits and search by name without affecting your data or the overall completion count. **Activity overview** shows recorded check-ins and days with at least one check-in across the last 7 or 30 local calendar days, including today. It counts currently active habits only, not a completion rate; archiving or restoring a habit changes the overview retrospectively. **Notes journal** searches notes and habit names for active habits through today, newest first, and opens notes for editing. Archived notes reappear when the habit is restored. The calendar’s **This month** button returns to the current month.
 
 ## Commands
 

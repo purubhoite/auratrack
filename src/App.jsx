@@ -506,7 +506,7 @@ const DashboardPage = ({ user }) => {
                 <TodayView habits={habits} allCompletions={allCompletions} today={today} onToggle={toggleCompletion} onOpenNote={(habit, date) => setNoteModalData({ habit, date, completion: allCompletions[habit.id]?.[formatDate(date)] })} pendingCompletions={pendingCompletions} />
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <ProgressOverview habits={habits} streakData={streakData} addHabit={addHabit} deleteHabit={deleteHabit} renameHabit={renameHabit} processingState={processingState} />
-                    <CalendarGrid habits={habits} allCompletions={allCompletions} currentDate={currentDate} changeMonth={changeMonth} onToggle={toggleCompletion} onOpenNote={(habit, date) => setNoteModalData({ habit, date, completion: allCompletions[habit.id]?.[formatDate(date)] })} pendingCompletions={pendingCompletions} />
+                    <CalendarGrid habits={habits} allCompletions={allCompletions} currentDate={currentDate} goToToday={() => setCurrentDate(new Date())} changeMonth={changeMonth} onToggle={toggleCompletion} onOpenNote={(habit, date) => setNoteModalData({ habit, date, completion: allCompletions[habit.id]?.[formatDate(date)] })} pendingCompletions={pendingCompletions} />
                 </div>
             </main>
              <footer className="text-center p-4 text-zinc-500 text-sm">

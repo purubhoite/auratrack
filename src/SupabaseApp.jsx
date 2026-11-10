@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { SolidCard, PrimaryButton, CloseIcon, Toast, NoteModal, ProgressOverview, CalendarGrid, TodayView } from './components/TrackerUI';
 import { useDialogFocus } from './hooks/useDialogFocus';
+import { ActivityInsights, NotesJournal } from './components/Insights';
 import { calculateStreak, formatDate, GUEST_STORAGE_KEY, moveMonth, readGuestData, writeGuestData } from './domain/tracking';
 import { prepareGuestImport } from './domain/importValidation';
 import { createGuestExport, downloadExport } from './domain/export';
@@ -71,9 +72,9 @@ function useGuest() {
 
 function useSession() {
     // A new token for each identity transition also catches a switch away and back.
-    const identity = useRef({ uid: null });
+    const identity = useRef({ uid: null, sequence: 0 });
     const [state, setState] = useState(() => ({ loading: Boolean(supabase), user: null, recovery: false, error: '', identityToken: identity.current }));
-    const changeIdentity = uid => { if (identity.current.uid !== uid) identity.current = { uid }; };
+    const changeIdentity = uid => { if (identity.current.uid !== uid) identity.current = { uid, sequence: identity.current.sequence + 1 }; };
     useEffect(() => {
         if (!supabase) return;
         let active = true;
@@ -349,8 +350,9 @@ export default function SupabaseApp() {
                 {uid && guest.data.habits.length > 0 && <div className="p-4 mb-6 border border-amber-500/30 rounded-lg bg-amber-900/20 text-amber-100"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm">You have {guest.data.habits.length} guest habit(s) on this device. Import copies active guest habits only, keeps all originals on this device, and skips previously imported records even if edited or deleted later. Restore archived guest habits in guest mode to import them.</p><button disabled={importing || Boolean(guest.error)} onClick={importGuest} className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-amber-500 disabled:opacity-50">{importing ? 'Importing…' : 'Import guest data'}</button></div>{importStatus?.uid === uid && <p role="status" className="mt-3 text-sm">{importStatus.message}</p>}</div>}
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-400"><p>Export a private JSON copy of your data. Restoring exports is not yet supported.</p><div className="flex gap-2">{uid && <button type="button" onClick={() => refresh(true)} className="rounded-lg border border-zinc-600 px-4 py-2 text-zinc-200 hover:bg-zinc-800">Refresh</button>}<button type="button" onClick={exportData} disabled={exporting || (!uid && guest.readFailed)} className="rounded-lg border border-zinc-600 px-4 py-2 text-zinc-200 hover:bg-zinc-800 disabled:opacity-50">{exporting ? 'Preparing export…' : 'Export data'}</button></div></div>
                 {uid && <p className="mb-4 text-sm text-zinc-400">Changes require a connection. Refresh to see updates from other devices.</p>}
-                <TodayView habits={habits} allCompletions={completions} today={today} onToggle={toggle} onOpenNote={openNote} pendingCompletions={pending} />
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8"><ProgressOverview habits={habits} streakData={streakData} addHabit={addHabit} deleteHabit={deleteHabit} renameHabit={renameHabit} archiveHabit={id => setArchived(id, true)} archivedHabits={archivedHabits} restoreHabit={id => setArchived(id, false)} processingState={processing} /><CalendarGrid habits={habits} allCompletions={completions} currentDate={currentDate} changeMonth={offset => setCurrentDate(prev => moveMonth(prev, offset))} onToggle={toggle} onOpenNote={openNote} pendingCompletions={pending} /></div>
+                <TodayView key={`today-${identityToken.sequence}`} habits={habits} allCompletions={completions} today={today} onToggle={toggle} onOpenNote={openNote} pendingCompletions={pending} />
+                {habits.length > 0 && <div key={`insights-${identityToken.sequence}`} className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2"><ActivityInsights habits={habits} completions={completions} today={today} /><NotesJournal habits={habits} completions={completions} today={today} onOpenNote={openNote} /></div>}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8"><ProgressOverview habits={habits} streakData={streakData} addHabit={addHabit} deleteHabit={deleteHabit} renameHabit={renameHabit} archiveHabit={id => setArchived(id, true)} archivedHabits={archivedHabits} restoreHabit={id => setArchived(id, false)} processingState={processing} /><CalendarGrid habits={habits} allCompletions={completions} currentDate={currentDate} goToToday={() => setCurrentDate(new Date())} changeMonth={offset => setCurrentDate(prev => moveMonth(prev, offset))} onToggle={toggle} onOpenNote={openNote} pendingCompletions={pending} /></div>
             </>}
         </main><footer className="text-center p-4 text-zinc-500 text-sm">Created by Puru</footer>
     </div>;

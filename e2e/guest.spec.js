@@ -59,3 +59,26 @@ test('page remains horizontally usable and dialogs support keyboard escape', asy
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
 });
+
+test('uses Today filters and finds a saved journal note', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '+ Read', exact: true }).click();
+  await page.getByRole('button', { name: '+ Exercise', exact: true }).click();
+  await page.getByRole('button', { name: 'Mark complete today: Read' }).click();
+  await page.getByRole('button', { name: "Edit today's note: Read" }).click();
+  await page.getByRole('textbox', { name: 'Habit note' }).fill('Read about the stars');
+  await page.getByRole('button', { name: 'Save Note' }).click();
+  await page.getByRole('button', { name: 'To do', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Mark incomplete today: Read' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Mark complete today: Exercise' })).toBeVisible();
+  await page.getByRole('searchbox', { name: 'Search notes and habits' }).fill('STARS');
+  await page.getByRole('button', { name: /Edit note for Read/ }).click();
+  await expect(page.getByRole('textbox', { name: 'Habit note' })).toHaveValue('Read about the stars');
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByRole('button', { name: '30 days' }).click();
+  await expect(page.getByRole('button', { name: '30 days' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Previous month' }).click();
+  await page.getByRole('button', { name: 'This month' }).click();
+  const currentMonth = await page.evaluate(() => new Date().toLocaleString('default', { month: 'long', year: 'numeric' }));
+  await expect(page.getByRole('heading', { name: currentMonth })).toBeVisible();
+});
